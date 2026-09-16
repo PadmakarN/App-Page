@@ -1,0 +1,29 @@
+server/
+ ├─ src/
+ │   ├─ server.js
+ │   ├─ db.js
+ │   ├─ helpers.js
+ │   ├─ pageRepository.js
+ │   └─ procedureExecutor.js
+ │
+ ├─ sql/
+ │   ├─ USP_APP_PAGE_SAVE.sql
+ │   └─ USP_APP_PAGE_MST_Delete.sql
+ │
+ ├─ .env.example
+ ├─ package.json
+ └─ README.md
+
+ GET    /api/app-page/list
+GET    /api/app-page/:pageId
+POST   /api/app-page/save
+DELETE /api/app-page/:pageId
+
+GET    /api/pages/:pageKey
+GET    /api/pages/:pageKey/:id
+POST   /api/pages/:pageKey
+PUT    /api/pages/:pageKey/:id
+DELETE /api/pages/:pageKey/:id
+
+GET    /api/page/dropdown
+GET    /api/page/lookup

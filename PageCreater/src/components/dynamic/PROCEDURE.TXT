@@ -1,0 +1,503 @@
+USE [ERP01]
+GO
+
+CREATE OR ALTER PROCEDURE dbo.USP_APP_PAGE_SAVE
+(
+    @PAGE_ID       NUMERIC(18,0) = NULL OUTPUT,
+    @MASTER_JSON   NVARCHAR(MAX),
+    @DETAIL_JSON   NVARCHAR(MAX),
+    @CUID          NUMERIC(18,0) = NULL,
+    @RETURN_VALUE  INT OUTPUT,
+    @RETURN_MESSAGE NVARCHAR(1000) OUTPUT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @ErrorMessage NVARCHAR(4000);
+
+    BEGIN TRY
+
+        BEGIN TRANSACTION;
+
+        /* =========================================================
+           1. VALIDATE MASTER JSON
+           ========================================================= */
+
+        IF ISJSON(@MASTER_JSON) <> 1
+        BEGIN
+            THROW 50001, 'Invalid Master JSON.', 1;
+        END;
+
+        IF ISJSON(@DETAIL_JSON) <> 1
+        BEGIN
+            THROW 50002, 'Invalid Detail JSON.', 1;
+        END;
+
+
+        /* =========================================================
+           2. NEW PAGE -> GENERATE PAGE_ID
+           ========================================================= */
+
+        IF ISNULL(@PAGE_ID, 0) = 0
+        BEGIN
+
+            SELECT @PAGE_ID =
+                ISNULL(MAX(PAGE_ID), 0) + 1
+            FROM dbo.APP_PAGE_MST WITH (UPDLOCK, HOLDLOCK);
+
+        END;
+
+
+        /* =========================================================
+           3. MASTER INSERT / UPDATE
+           ========================================================= */
+
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.APP_PAGE_MST
+            WHERE PAGE_ID = @PAGE_ID
+        )
+        BEGIN
+
+            UPDATE M
+            SET
+                M.PAGE_NAME      = J.PAGE_NAME,
+                M.TITLE          = J.TITLE,
+                M.TABLE_NAME     = J.TABLE_NAME,
+                M.PRIMARY_ID     = J.PRIMARY_ID,
+                M.PRIMARY_NUMBER = J.PRIMARY_NUMBER,
+                M.INSERT_SP      = J.INSERT_SP,
+                M.UPDATE_SP      = J.UPDATE_SP,
+                M.GETDATA_SP     = J.GETDATA_SP,
+                M.DELETE_SP      = J.DELETE_SP,
+                M.Html_Script    = J.Html_Script,
+                M.AuthName       = J.AuthName,
+                M.ReportName     = J.ReportName,
+                M.PRINT_RPT      = J.PRINT_RPT,
+                M.BRANCH_SRNO    = J.BRANCH_SRNO,
+                M.ATTACHMENT     = J.ATTACHMENT,
+                M.REMARKS        = J.REMARKS,
+                M.STATUS         = J.STATUS,
+                M.Copy           = J.Copy,
+                M.HTMLButtons    = J.HTMLButtons,
+                M.EXEC_SP        = J.EXEC_SP,
+                M.AuthBy         = J.AuthBy,
+                M.DevAuthCode    = J.DevAuthCode,
+                M.PRINT_RPT1     = J.PRINT_RPT1,
+                M.AUTH_SP        = J.AUTH_SP,
+                M.SaveOpt        = J.SaveOpt,
+                M.NewLink        = J.NewLink,
+                M.Theme          = J.Theme,
+                M.Theme2         = J.Theme2,
+                M.MUID           = @CUID,
+                M.MDT            = GETDATE()
+            FROM dbo.APP_PAGE_MST M
+            CROSS APPLY OPENJSON(@MASTER_JSON)
+            WITH
+            (
+                PAGE_NAME      NVARCHAR(128) = '$.PAGE_NAME',
+                TITLE          NVARCHAR(64)  = '$.TITLE',
+                TABLE_NAME     NVARCHAR(64)  = '$.TABLE_NAME',
+                PRIMARY_ID     NVARCHAR(32)  = '$.PRIMARY_ID',
+                PRIMARY_NUMBER NVARCHAR(32)  = '$.PRIMARY_NUMBER',
+                INSERT_SP      NVARCHAR(128) = '$.INSERT_SP',
+                UPDATE_SP      NVARCHAR(128) = '$.UPDATE_SP',
+                GETDATA_SP     NVARCHAR(128) = '$.GETDATA_SP',
+                DELETE_SP      NVARCHAR(128) = '$.DELETE_SP',
+                Html_Script    NVARCHAR(MAX) = '$.Html_Script',
+                AuthName       NVARCHAR(128) = '$.AuthName',
+                ReportName     NVARCHAR(128) = '$.ReportName',
+                PRINT_RPT      NVARCHAR(128) = '$.PRINT_RPT',
+                BRANCH_SRNO    BIT = '$.BRANCH_SRNO',
+                ATTACHMENT     BIT = '$.ATTACHMENT',
+                REMARKS        NVARCHAR(MAX) = '$.REMARKS',
+                STATUS         NVARCHAR(20) = '$.STATUS',
+                Copy           BIT = '$.Copy',
+                HTMLButtons    NVARCHAR(MAX) = '$.HTMLButtons',
+                EXEC_SP        NVARCHAR(512) = '$.EXEC_SP',
+                AuthBy         NUMERIC(18,0) = '$.AuthBy',
+                DevAuthCode    NVARCHAR(64) = '$.DevAuthCode',
+                PRINT_RPT1     NVARCHAR(128) = '$.PRINT_RPT1',
+                AUTH_SP        NVARCHAR(128) = '$.AUTH_SP',
+                SaveOpt        VARCHAR(64) = '$.SaveOpt',
+                NewLink        VARCHAR(512) = '$.NewLink',
+                Theme          VARCHAR(32) = '$.Theme',
+                Theme2         VARCHAR(32) = '$.Theme2'
+            ) J
+            WHERE M.PAGE_ID = @PAGE_ID;
+
+        END
+        ELSE
+        BEGIN
+
+            INSERT INTO dbo.APP_PAGE_MST
+            (
+                PAGE_ID,
+                PAGE_NAME,
+                TITLE,
+                TABLE_NAME,
+                PRIMARY_ID,
+                PRIMARY_NUMBER,
+                INSERT_SP,
+                UPDATE_SP,
+                GETDATA_SP,
+                DELETE_SP,
+                Html_Script,
+                AuthName,
+                ReportName,
+                PRINT_RPT,
+                BRANCH_SRNO,
+                ATTACHMENT,
+                REMARKS,
+                STATUS,
+                CUID,
+                CDT,
+                Copy,
+                HTMLButtons,
+                EXEC_SP,
+                AuthBy,
+                DevAuthCode,
+                PRINT_RPT1,
+                AUTH_SP,
+                SaveOpt,
+                NewLink,
+                Theme,
+                Theme2
+            )
+            SELECT
+                @PAGE_ID,
+                PAGE_NAME,
+                TITLE,
+                TABLE_NAME,
+                PRIMARY_ID,
+                PRIMARY_NUMBER,
+                INSERT_SP,
+                UPDATE_SP,
+                GETDATA_SP,
+                DELETE_SP,
+                Html_Script,
+                AuthName,
+                ReportName,
+                PRINT_RPT,
+                BRANCH_SRNO,
+                ATTACHMENT,
+                REMARKS,
+                STATUS,
+                @CUID,
+                GETDATE(),
+                Copy,
+                HTMLButtons,
+                EXEC_SP,
+                AuthBy,
+                DevAuthCode,
+                PRINT_RPT1,
+                AUTH_SP,
+                SaveOpt,
+                NewLink,
+                Theme,
+                Theme2
+            FROM OPENJSON(@MASTER_JSON)
+            WITH
+            (
+                PAGE_NAME      NVARCHAR(128) = '$.PAGE_NAME',
+                TITLE          NVARCHAR(64)  = '$.TITLE',
+                TABLE_NAME     NVARCHAR(64)  = '$.TABLE_NAME',
+                PRIMARY_ID     NVARCHAR(32)  = '$.PRIMARY_ID',
+                PRIMARY_NUMBER NVARCHAR(32)  = '$.PRIMARY_NUMBER',
+                INSERT_SP      NVARCHAR(128) = '$.INSERT_SP',
+                UPDATE_SP      NVARCHAR(128) = '$.UPDATE_SP',
+                GETDATA_SP     NVARCHAR(128) = '$.GETDATA_SP',
+                DELETE_SP      NVARCHAR(128) = '$.DELETE_SP',
+                Html_Script    NVARCHAR(MAX) = '$.Html_Script',
+                AuthName       NVARCHAR(128) = '$.AuthName',
+                ReportName     NVARCHAR(128) = '$.ReportName',
+                PRINT_RPT      NVARCHAR(128) = '$.PRINT_RPT',
+                BRANCH_SRNO    BIT = '$.BRANCH_SRNO',
+                ATTACHMENT     BIT = '$.ATTACHMENT',
+                REMARKS        NVARCHAR(MAX) = '$.REMARKS',
+                STATUS         NVARCHAR(20) = '$.STATUS',
+                Copy           BIT = '$.Copy',
+                HTMLButtons    NVARCHAR(MAX) = '$.HTMLButtons',
+                EXEC_SP        NVARCHAR(512) = '$.EXEC_SP',
+                AuthBy         NUMERIC(18,0) = '$.AuthBy',
+                DevAuthCode    NVARCHAR(64) = '$.DevAuthCode',
+                PRINT_RPT1     NVARCHAR(128) = '$.PRINT_RPT1',
+                AUTH_SP        NVARCHAR(128) = '$.AUTH_SP',
+                SaveOpt        VARCHAR(64) = '$.SaveOpt',
+                NewLink        VARCHAR(512) = '$.NewLink',
+                Theme          VARCHAR(32) = '$.Theme',
+                Theme2         VARCHAR(32) = '$.Theme2'
+            );
+
+        END;
+
+
+        /* =========================================================
+           4. DETAIL JSON -> TEMP TABLE
+           ========================================================= */
+
+        DECLARE @DETAIL TABLE
+        (
+            PAGE_PARAM_ID NUMERIC(18,0),
+            SEQNO         INT,
+            GROUPNAME     NVARCHAR(128),
+            GROUPSEQ      INT,
+            FIELD_NAME    NVARCHAR(128),
+            TITLE         NVARCHAR(128),
+            ColSize       VARCHAR(64),
+            CntProps      NVARCHAR(512),
+            PRIMARY_KEY   BIT,
+            MANDATORY     BIT,
+            Disabled      BIT,
+            DATA_TYPE     NVARCHAR(128),
+            MaxSize       INT,
+            VALIDATION    NVARCHAR(128),
+            CssClass      NVARCHAR(64),
+            DDLNAME       NVARCHAR(1024),
+            Ajax          BIT,
+            DDLFIELDS     NVARCHAR(1024),
+            DDLWHERE      NVARCHAR(512),
+            NEW_SCRIPT    NVARCHAR(512),
+            TOOLTIPS      NVARCHAR(4000),
+            DefaultValue  NVARCHAR(128),
+            Html_Script   NVARCHAR(4000),
+            RefCol        BIT,
+            TitleSize     INT,
+            LogReq        BIT,
+            Description   NVARCHAR(4000)
+        );
+
+
+        INSERT INTO @DETAIL
+        SELECT
+            PAGE_PARAM_ID,
+            SEQNO,
+            GROUPNAME,
+            GROUPSEQ,
+            FIELD_NAME,
+            TITLE,
+            ColSize,
+            CntProps,
+            PRIMARY_KEY,
+            MANDATORY,
+            Disabled,
+            DATA_TYPE,
+            MaxSize,
+            VALIDATION,
+            CssClass,
+            DDLNAME,
+            Ajax,
+            DDLFIELDS,
+            DDLWHERE,
+            NEW_SCRIPT,
+            TOOLTIPS,
+            DefaultValue,
+            Html_Script,
+            RefCol,
+            TitleSize,
+            LogReq,
+            Description
+        FROM OPENJSON(@DETAIL_JSON)
+        WITH
+        (
+            PAGE_PARAM_ID NUMERIC(18,0) = '$.PAGE_PARAM_ID',
+            SEQNO         INT = '$.SEQNO',
+            GROUPNAME     NVARCHAR(128) = '$.GROUPNAME',
+            GROUPSEQ      INT = '$.GROUPSEQ',
+            FIELD_NAME    NVARCHAR(128) = '$.FIELD_NAME',
+            TITLE         NVARCHAR(128) = '$.TITLE',
+            ColSize       VARCHAR(64) = '$.ColSize',
+            CntProps      NVARCHAR(512) = '$.CntProps',
+            PRIMARY_KEY   BIT = '$.PRIMARY_KEY',
+            MANDATORY     BIT = '$.MANDATORY',
+            Disabled      BIT = '$.Disabled',
+            DATA_TYPE     NVARCHAR(128) = '$.DATA_TYPE',
+            MaxSize       INT = '$.MaxSize',
+            VALIDATION    NVARCHAR(128) = '$.VALIDATION',
+            CssClass      NVARCHAR(64) = '$.CssClass',
+            DDLNAME       NVARCHAR(1024) = '$.DDLNAME',
+            Ajax          BIT = '$.Ajax',
+            DDLFIELDS     NVARCHAR(1024) = '$.DDLFIELDS',
+            DDLWHERE      NVARCHAR(512) = '$.DDLWHERE',
+            NEW_SCRIPT    NVARCHAR(512) = '$.NEW_SCRIPT',
+            TOOLTIPS      NVARCHAR(4000) = '$.TOOLTIPS',
+            DefaultValue  NVARCHAR(128) = '$.DefaultValue',
+            Html_Script   NVARCHAR(4000) = '$.Html_Script',
+            RefCol        BIT = '$.RefCol',
+            TitleSize     INT = '$.TitleSize',
+            LogReq        BIT = '$.LogReq',
+            Description   NVARCHAR(4000) = '$.Description'
+        );
+
+
+        /* =========================================================
+           5. DELETE DETAILS REMOVED FROM UI
+           ========================================================= */
+
+        DELETE D
+        FROM dbo.APP_PAGE_DTL D
+        WHERE D.PAGE_ID = @PAGE_ID
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM @DETAIL X
+              WHERE X.PAGE_PARAM_ID = D.PAGE_PARAM_ID
+                AND X.PAGE_PARAM_ID IS NOT NULL
+                AND X.PAGE_PARAM_ID <> 0
+          );
+
+
+        /* =========================================================
+           6. UPDATE EXISTING DETAILS
+           ========================================================= */
+
+        UPDATE D
+        SET
+            D.SEQNO        = X.SEQNO,
+            D.GROUPNAME    = X.GROUPNAME,
+            D.GROUPSEQ     = X.GROUPSEQ,
+            D.FIELD_NAME   = X.FIELD_NAME,
+            D.TITLE        = X.TITLE,
+            D.ColSize      = X.ColSize,
+            D.CntProps     = X.CntProps,
+            D.PRIMARY_KEY  = X.PRIMARY_KEY,
+            D.MANDATORY    = X.MANDATORY,
+            D.Disabled     = X.Disabled,
+            D.DATA_TYPE    = X.DATA_TYPE,
+            D.MaxSize      = X.MaxSize,
+            D.VALIDATION   = X.VALIDATION,
+            D.CssClass     = X.CssClass,
+            D.DDLNAME      = X.DDLNAME,
+            D.Ajax         = X.Ajax,
+            D.DDLFIELDS    = X.DDLFIELDS,
+            D.DDLWHERE     = X.DDLWHERE,
+            D.NEW_SCRIPT   = X.NEW_SCRIPT,
+            D.TOOLTIPS     = X.TOOLTIPS,
+            D.DefaultValue = X.DefaultValue,
+            D.Html_Script  = X.Html_Script,
+            D.RefCol       = X.RefCol,
+            D.TitleSize    = X.TitleSize,
+            D.LogReq       = X.LogReq,
+            D.Description  = X.Description
+        FROM dbo.APP_PAGE_DTL D
+        INNER JOIN @DETAIL X
+            ON X.PAGE_PARAM_ID = D.PAGE_PARAM_ID
+        WHERE D.PAGE_ID = @PAGE_ID;
+
+
+        /* =========================================================
+           7. INSERT NEW DETAILS
+           ========================================================= */
+
+        DECLARE @NEXT_PARAM_ID NUMERIC(18,0);
+
+        SELECT
+            @NEXT_PARAM_ID = ISNULL(MAX(PAGE_PARAM_ID), 0)
+        FROM dbo.APP_PAGE_DTL WITH (UPDLOCK, HOLDLOCK);
+
+
+        INSERT INTO dbo.APP_PAGE_DTL
+        (
+            PAGE_PARAM_ID,
+            PAGE_ID,
+            SEQNO,
+            GROUPNAME,
+            GROUPSEQ,
+            FIELD_NAME,
+            TITLE,
+            ColSize,
+            CntProps,
+            PRIMARY_KEY,
+            MANDATORY,
+            Disabled,
+            DATA_TYPE,
+            MaxSize,
+            VALIDATION,
+            CssClass,
+            DDLNAME,
+            Ajax,
+            DDLFIELDS,
+            DDLWHERE,
+            NEW_SCRIPT,
+            TOOLTIPS,
+            DefaultValue,
+            Html_Script,
+            RefCol,
+            TitleSize,
+            LogReq,
+            Description
+        )
+        SELECT
+            @NEXT_PARAM_ID +
+                ROW_NUMBER() OVER (ORDER BY X.SEQNO, X.FIELD_NAME),
+            @PAGE_ID,
+            X.SEQNO,
+            X.GROUPNAME,
+            X.GROUPSEQ,
+            X.FIELD_NAME,
+            X.TITLE,
+            X.ColSize,
+            X.CntProps,
+            X.PRIMARY_KEY,
+            X.MANDATORY,
+            X.Disabled,
+            X.DATA_TYPE,
+            X.MaxSize,
+            X.VALIDATION,
+            X.CssClass,
+            X.DDLNAME,
+            X.Ajax,
+            X.DDLFIELDS,
+            X.DDLWHERE,
+            X.NEW_SCRIPT,
+            X.TOOLTIPS,
+            X.DefaultValue,
+            X.Html_Script,
+            X.RefCol,
+            X.TitleSize,
+            X.LogReq,
+            X.Description
+        FROM @DETAIL X
+        WHERE ISNULL(X.PAGE_PARAM_ID, 0) = 0;
+
+
+        /* =========================================================
+           8. SUCCESS
+           ========================================================= */
+
+        COMMIT TRANSACTION;
+
+        SET @RETURN_VALUE = 0;
+        SET @RETURN_MESSAGE = 'Page saved successfully.';
+
+        SELECT
+            @RETURN_VALUE AS RETURN_VALUE,
+            @RETURN_MESSAGE AS RETURN_MESSAGE,
+            @PAGE_ID AS PAGE_ID;
+
+        RETURN;
+
+    END TRY
+
+    BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SET @RETURN_VALUE = -1;
+
+        SET @RETURN_MESSAGE = ERROR_MESSAGE();
+
+        SELECT
+            @RETURN_VALUE AS RETURN_VALUE,
+            @RETURN_MESSAGE AS RETURN_MESSAGE,
+            @PAGE_ID AS PAGE_ID;
+
+        RETURN;
+
+    END CATCH
+END
+GO
