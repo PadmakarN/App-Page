@@ -1,0 +1,32 @@
+const agricultureCategories = [
+  "Seeds",
+  "Fertilizers",
+  "Pesticides",
+  "Herbicides",
+  "Fungicides",
+  "Agricultural Equipment",
+  "Tractors",
+  "Irrigation Systems",
+  "Organic Farming",
+  "Organic Fertilizers",
+  "Gardening Tools",
+  "Soil & Soil Testing",
+  "Animal Husbandry",
+  "Dairy Farming",
+  "Poultry Farming",
+  "Agricultural Machinery",
+  "Harvesting Equipment",
+  "Greenhouse Supplies",
+  "Plant Growth Regulators",
+  "Crop Protection",
+  "Agricultural Services",
+  "Farm Produce",
+  "Fruits",
+  "Vegetables",
+  "Grains & Cereals",
+  "Pulses",
+  "Spices",
+  "Other"
+];
+
+export default agricultureCategories;
